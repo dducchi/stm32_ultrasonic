@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ssd1306.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,6 +59,64 @@ static void MX_TIM3_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+uint32_t IC_Val1 = 0;
+uint32_t IC_Val2 = 0;
+uint32_t Difference = 0;
+uint8_t IsFirstCaptured = 0;//상승 및 하강
+uint8_t Distance = 0;
+
+void delay_us(uint16_t time) {
+	//__HAL_TIM_SET_COUNTER(&htim3, 0);
+	htim3.Instance->CNT = 0;
+	while(htim3.Instance->CNT<time);
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+	if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+		//많은 채널 중 1번 채널일때만 if문 안으로 들어오게 됨.
+		if(IsFirstCaptured == 0){
+			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+			IsFirstCaptured = 1;
+			//다음은 여기로 들어오게 됨
+			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+			//두번째를 falling으로 바꿔줌
+		}
+		else if(IsFirstCaptured == 1){
+			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+			//copy 했으니까 이제 카운터를 초기화 해야함
+			htim->Instance->CNT = 0;
+			//초기화 이후에는 계산을 해야함
+			if(IC_Val2 > IC_Val1){
+				Difference = IC_Val2 - IC_Val1;
+			}
+			else if(IC_Val2 < IC_Val1) {
+				Difference = (0xffff - IC_Val1)+ IC_Val2;
+			}
+			Distance = Difference * 0.034 / 2;
+			//다음 거리 측정을 위하여 다시 0으로 초기화
+			IsFirstCaptured = 0;
+
+			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+			//원래대로 다시 바꿔두기 (falling -> rising)
+			__HAL_TIM_DISABLE_IT(htim, TIM_IT_CC1);
+			//인터럭트 disenable
+		}
+	}
+}
+
+
+uint32_t getDistance() {
+	HAL_GPIO_WritePin(Trigger_GPIO_Port, Trigger_Pin, 1);
+	delay_us(10);
+	HAL_GPIO_WritePin(Trigger_GPIO_Port, Trigger_Pin, 0);
+
+	//인터럭트 enable
+	__HAL_TIM_ENABLE_IT(&htim3, TIM_IT_CC1);
+	return Distance;
+}
+/*main.c
+HAL_TIM_Base_Start(&htim1); */
+
 /* USER CODE END 0 */
 
 /**
@@ -92,7 +150,8 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
+ssd1306_Init();
+HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -102,6 +161,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  softScrollLeft();
+	  ssd1306_DrawPixel(127, getDistance(), 1);
+	  ssd1306_UpdateScreen();
+	  HAL_Delay(200);
+	  /*ssd1306_SetCursor(30, 20);
+	  char str[20];
+	  sprintf(str, "%4dcm", getDistance());
+	  ssd1306_WriteString(str, Font_11x18, 1);
+	  ssd1306_UpdateScreen();
+	  HAL_Delay(200);*/
   }
   /* USER CODE END 3 */
 }

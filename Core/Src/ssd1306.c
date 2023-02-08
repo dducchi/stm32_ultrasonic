@@ -7,9 +7,9 @@
 #if defined(SSD1306_USE_I2C)
 
 void ssd1306_Reset(void) {
-	HAL_GPIO_WritePin(OLed_reset_GPIO_Port, OLed_reset_Pin, 0);
+	HAL_GPIO_WritePin(OLedreset_GPIO_Port, OLedreset_Pin, 0);
 	HAL_Delay(1);
-	HAL_GPIO_WritePin(OLed_reset_GPIO_Port, OLed_reset_Pin, 1);
+	HAL_GPIO_WritePin(OLedreset_GPIO_Port, OLedreset_Pin, 1);
     /* for I2C - do nothing */
 }
 
