@@ -62,7 +62,7 @@ static void MX_TIM3_Init(void);
 uint32_t IC_Val1 = 0;
 uint32_t IC_Val2 = 0;
 uint32_t Difference = 0;
-uint8_t IsFirstCaptured = 0;//상승 및 하강
+uint8_t IsFirstCaptured = 0;//�?승 �? 하강
 uint8_t Distance = 0;
 
 void delay_us(uint16_t time) {
@@ -73,19 +73,19 @@ void delay_us(uint16_t time) {
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 	if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		//많은 채널 중 1번 채널일때만 if문 안으로 들어오게 됨.
+		//많�?� 채�? 중 1번 채�?�?�때만 if문 안으로 들어오게 �?�.
 		if(IsFirstCaptured == 0){
 			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
 			IsFirstCaptured = 1;
-			//다음은 여기로 들어오게 됨
+			//다�?��?� 여기로 들어오게 �?�
 			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-			//두번째를 falling으로 바꿔줌
+			//�?번째를 falling으로 바꿔줌
 		}
 		else if(IsFirstCaptured == 1){
 			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-			//copy 했으니까 이제 카운터를 초기화 해야함
+			//copy 했으니까 �?�제 카운터를 초기화 해야함
 			htim->Instance->CNT = 0;
-			//초기화 이후에는 계산을 해야함
+			//초기화 �?�후�?는 계산�?� 해야함
 			if(IC_Val2 > IC_Val1){
 				Difference = IC_Val2 - IC_Val1;
 			}
@@ -93,13 +93,13 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 				Difference = (0xffff - IC_Val1)+ IC_Val2;
 			}
 			Distance = Difference * 0.034 / 2;
-			//다음 거리 측정을 위하여 다시 0으로 초기화
+			//다�?� 거리 측정�?� 위하여 다시 0으로 초기화
 			IsFirstCaptured = 0;
 
 			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-			//원래대로 다시 바꿔두기 (falling -> rising)
+			//�?래대로 다시 바꿔�?기 (falling -> rising)
 			__HAL_TIM_DISABLE_IT(htim, TIM_IT_CC1);
-			//인터럭트 disenable
+			//�?�터럭트 disenable
 		}
 	}
 }
@@ -110,7 +110,7 @@ uint32_t getDistance() {
 	delay_us(10);
 	HAL_GPIO_WritePin(Trigger_GPIO_Port, Trigger_Pin, 0);
 
-	//인터럭트 enable
+	//�?�터럭트 enable
 	__HAL_TIM_ENABLE_IT(&htim3, TIM_IT_CC1);
 	return Distance;
 }
@@ -171,7 +171,16 @@ HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
 	  ssd1306_WriteString(str, Font_11x18, 1);
 	  ssd1306_UpdateScreen();
 	  HAL_Delay(200);*/
-  }
+	  if(getDistance() < 50){
+		  HAL_GPIO_WritePin(sensor_GPIO_Port, sensor_Pin, 1);
+		  HAL_Delay(10);
+	  }
+	  else {
+
+		  HAL_GPIO_WritePin(sensor_GPIO_Port, sensor_Pin, 0);
+		  HAL_Delay(10);
+	  }
+
   /* USER CODE END 3 */
 }
 
@@ -322,10 +331,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, OLedreset_Pin|Trigger_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, OLedreset_Pin|Trigger_Pin|sensor_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : OLedreset_Pin Trigger_Pin */
-  GPIO_InitStruct.Pin = OLedreset_Pin|Trigger_Pin;
+  /*Configure GPIO pins : OLedreset_Pin Trigger_Pin sensor_Pin */
+  GPIO_InitStruct.Pin = OLedreset_Pin|Trigger_Pin|sensor_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -350,6 +359,7 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
+}
 }
 
 #ifdef  USE_FULL_ASSERT
